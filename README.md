@@ -1,7 +1,7 @@
 # Java-Based Financial Portfolio Rebalancer
 
 A modern Java application that helps investors maintain their desired asset allocation by suggesting portfolio rebalancing actions based on predefined strategies.
-![Screenshot](Image/Screenshot.png)
+![Screenshot](Image/IMG.png)
 
 ## Features
 
