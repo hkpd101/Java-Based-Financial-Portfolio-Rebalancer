@@ -6,27 +6,39 @@ import java.util.Map;
 
 public class PortfolioRebalancer {
     private final RebalancingStrategy strategy;
-    
-    public PortfolioRebalancer(RebalancingStrategy strategy) {
+    private final double threshold;
+
+    public PortfolioRebalancer(RebalancingStrategy strategy, double threshold) {
         this.strategy = strategy;
+        this.threshold = threshold;
     }
-    
-    public Map<String, Integer> rebalance(Portfolio portfolio) {
-        portfolio.updateTotalValue();
-        return strategy.calculateRebalancing(portfolio);
+
+    public Map<String, Double> rebalance(Portfolio portfolio) {
+        if (!portfolio.needsRebalancing(threshold)) {
+            return Map.of();
+        }
+        return strategy.calculateRebalancingTrades(portfolio, threshold);
     }
-    
+
+    public String getStrategyName() {
+        return strategy.getStrategyName();
+    }
+
+    public String getStrategyDescription() {
+        return strategy.getStrategyDescription();
+    }
+
     public void printRebalancingPlan(Portfolio portfolio) {
-        Map<String, Integer> actions = rebalance(portfolio);
+        Map<String, Double> actions = rebalance(portfolio);
         
         System.out.println("\nRebalancing Plan (" + strategy.getStrategyName() + "):");
         System.out.println("----------------------------------------");
         
-        actions.forEach((symbol, quantity) -> {
-            if (quantity > 0) {
-                System.out.printf("Buy %d shares of %s%n", quantity, symbol);
-            } else if (quantity < 0) {
-                System.out.printf("Sell %d shares of %s%n", Math.abs(quantity), symbol);
+        actions.forEach((symbol, amount) -> {
+            if (amount > 0) {
+                System.out.printf("Buy $%.2f of %s%n", amount, symbol);
+            } else if (amount < 0) {
+                System.out.printf("Sell $%.2f of %s%n", Math.abs(amount), symbol);
             }
         });
         

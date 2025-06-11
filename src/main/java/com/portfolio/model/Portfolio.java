@@ -3,28 +3,59 @@ package com.portfolio.model;
 import lombok.Data;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Data
 public class Portfolio {
-    private List<Stock> stocks = new ArrayList<>();
+    private String name;
+    private List<Asset> assets;
     private double totalValue;
-    
-    public void addStock(Stock stock) {
-        stocks.add(stock);
+    private double cashBalance;
+
+    public Portfolio() {
+        this.assets = new ArrayList<>();
+    }
+
+    public void addAsset(Asset asset) {
+        assets.add(asset);
         updateTotalValue();
     }
-    
+
+    public void removeAsset(String symbol) {
+        assets.removeIf(asset -> asset.getSymbol().equals(symbol));
+        updateTotalValue();
+    }
+
     public void updateTotalValue() {
-        totalValue = stocks.stream()
-                .mapToDouble(Stock::getCurrentValue)
+        this.totalValue = assets.stream()
+                .mapToDouble(Asset::getCurrentValue)
+                .sum() + cashBalance;
+    }
+
+    public Map<String, Double> getCurrentAllocations() {
+        return assets.stream()
+                .collect(Collectors.toMap(
+                    Asset::getSymbol,
+                    asset -> asset.getCurrentAllocation(totalValue)
+                ));
+    }
+
+    public Map<String, Double> getDeviationFromTarget() {
+        return assets.stream()
+                .collect(Collectors.toMap(
+                    Asset::getSymbol,
+                    asset -> asset.getDeviationFromTarget(totalValue)
+                ));
+    }
+
+    public double getTotalDeviation() {
+        return assets.stream()
+                .mapToDouble(asset -> Math.abs(asset.getDeviationFromTarget(totalValue)))
                 .sum();
     }
-    
-    public double getStockAllocation(String symbol) {
-        return stocks.stream()
-                .filter(s -> s.getSymbol().equals(symbol))
-                .findFirst()
-                .map(s -> s.getCurrentAllocation(totalValue))
-                .orElse(0.0);
+
+    public boolean needsRebalancing(double threshold) {
+        return getTotalDeviation() > threshold;
     }
 } 

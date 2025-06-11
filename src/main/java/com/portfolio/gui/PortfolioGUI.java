@@ -1,341 +1,262 @@
 package com.portfolio.gui;
 
 import com.formdev.flatlaf.FlatLightLaf;
-import com.formdev.flatlaf.extras.FlatSVGIcon;
+import com.portfolio.model.Asset;
+import com.portfolio.model.AssetType;
 import com.portfolio.model.Portfolio;
-import com.portfolio.model.Stock;
 import com.portfolio.service.PortfolioRebalancer;
 import com.portfolio.strategy.EqualWeightStrategy;
-import com.portfolio.strategy.RebalancingStrategy;
+import com.portfolio.strategy.ThresholdRebalancingStrategy;
 
 import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.util.Map;
 
 public class PortfolioGUI extends JFrame {
     private final Portfolio portfolio;
-    private final PortfolioRebalancer rebalancer;
     private final JTable portfolioTable;
     private final DefaultTableModel tableModel;
-    private final JTextArea rebalancingOutput;
-    private JLabel totalValueLabel;
-    private final Color primaryColor = new Color(41, 128, 185);
-    private final Color secondaryColor = new Color(52, 152, 219);
-    private final Color backgroundColor = new Color(236, 240, 241);
-    private final Color textColor = new Color(44, 62, 80);
+    private final JLabel totalValueLabel;
+    private final JComboBox<String> strategyComboBox;
+    private final JSpinner thresholdSpinner;
+    private PortfolioRebalancer rebalancer;
 
     public PortfolioGUI() {
         portfolio = new Portfolio();
-        rebalancer = new PortfolioRebalancer(new EqualWeightStrategy());
-        
-        // Set up the frame
+        portfolio.setName("My Portfolio");
+
+        // Set up the main frame
         setTitle("Portfolio Rebalancer");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1000, 700);
+        setSize(800, 600);
         setLocationRelativeTo(null);
-        getContentPane().setBackground(backgroundColor);
 
-        // Create main panel with BorderLayout
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBackground(backgroundColor);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        // Create the main panel with padding
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        add(mainPanel);
 
-        // Create header panel
-        JPanel headerPanel = createHeaderPanel();
-        
-        // Create portfolio table with custom styling
-        String[] columnNames = {"Symbol", "Name", "Price", "Quantity", "Value", "Allocation %"};
+        // Create the portfolio table
+        String[] columnNames = {"Symbol", "Name", "Type", "Quantity", "Price", "Value", "Target %", "Current %", "Deviation"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 3; // Only quantity is editable
+                return column == 3 || column == 5 || column == 6; // Only quantity, price, and target % are editable
             }
         };
-        portfolioTable = createStyledTable();
+        portfolioTable = new JTable(tableModel);
         JScrollPane tableScrollPane = new JScrollPane(portfolioTable);
-        tableScrollPane.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createEmptyBorder(10, 0, 10, 0),
-            BorderFactory.createLineBorder(primaryColor, 1)
-        ));
-        
-        // Create input panel
-        JPanel inputPanel = createInputPanel();
-        
-        // Create rebalancing output area
-        rebalancingOutput = new JTextArea(5, 40);
-        rebalancingOutput.setEditable(false);
-        rebalancingOutput.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        rebalancingOutput.setBackground(new Color(255, 255, 255));
-        rebalancingOutput.setForeground(textColor);
-        JScrollPane outputScrollPane = new JScrollPane(rebalancingOutput);
-        outputScrollPane.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(primaryColor, 1),
-                "Rebalancing Recommendations",
-                TitledBorder.LEFT,
-                TitledBorder.TOP,
-                new Font("Segoe UI", Font.BOLD, 14),
-                primaryColor
-            ),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)
-        ));
-        
-        // Create button panel
-        JPanel buttonPanel = createButtonPanel();
-        
-        // Add components to main panel
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
-        mainPanel.add(inputPanel, BorderLayout.NORTH);
         mainPanel.add(tableScrollPane, BorderLayout.CENTER);
-        mainPanel.add(outputScrollPane, BorderLayout.SOUTH);
-        mainPanel.add(buttonPanel, BorderLayout.EAST);
-        
-        add(mainPanel);
-    }
 
-    private JPanel createHeaderPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(backgroundColor);
-        
-        JLabel titleLabel = new JLabel("Portfolio Rebalancer");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        titleLabel.setForeground(primaryColor);
-        
-        totalValueLabel = new JLabel("Total Portfolio Value: $0.00");
-        totalValueLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        totalValueLabel.setForeground(textColor);
-        
-        panel.add(titleLabel, BorderLayout.WEST);
-        panel.add(totalValueLabel, BorderLayout.EAST);
-        
-        return panel;
-    }
+        // Create the control panel
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        mainPanel.add(controlPanel, BorderLayout.NORTH);
 
-    private JTable createStyledTable() {
-        JTable table = new JTable(tableModel);
-        
-        // Style the table header
-        JTableHeader header = table.getTableHeader();
-        header.setBackground(primaryColor);
-        header.setForeground(Color.WHITE);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        
-        // Style the table
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        table.setRowHeight(30);
-        table.setGridColor(secondaryColor);
-        table.setShowGrid(true);
-        
-        // Center align all columns
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        for (int i = 0; i < table.getColumnCount(); i++) {
-            table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        // Add asset button
+        JButton addButton = new JButton("Add Asset");
+        addButton.addActionListener(e -> showAddAssetDialog());
+        controlPanel.add(addButton);
+
+        // Remove asset button
+        JButton removeButton = new JButton("Remove Selected");
+        removeButton.addActionListener(e -> removeSelectedAsset());
+        controlPanel.add(removeButton);
+
+        // Strategy selection
+        String[] strategies = {"Threshold-Based", "Equal Weight"};
+        strategyComboBox = new JComboBox<>(strategies);
+        strategyComboBox.addActionListener(e -> updateRebalancer());
+        controlPanel.add(new JLabel("Strategy:"));
+        controlPanel.add(strategyComboBox);
+
+        // Threshold spinner
+        SpinnerNumberModel thresholdModel = new SpinnerNumberModel(0.05, 0.01, 0.5, 0.01);
+        thresholdSpinner = new JSpinner(thresholdModel);
+        thresholdSpinner.addChangeListener(e -> updateRebalancer());
+        controlPanel.add(new JLabel("Threshold:"));
+        controlPanel.add(thresholdSpinner);
+
+        // Rebalance button
+        JButton rebalanceButton = new JButton("Rebalance");
+        rebalanceButton.addActionListener(e -> rebalancePortfolio());
+        controlPanel.add(rebalanceButton);
+
+        // Total value label
+        totalValueLabel = new JLabel("Total Value: $0.00");
+        controlPanel.add(totalValueLabel);
+
+        // Initialize the rebalancer
+        updateRebalancer();
+
+        // Set the look and feel
+        try {
+            UIManager.setLookAndFeel(new FlatLightLaf());
+            SwingUtilities.updateComponentTreeUI(this);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        
-        return table;
     }
 
-    private JPanel createInputPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(backgroundColor);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(primaryColor, 1),
-                "Add New Stock",
-                TitledBorder.LEFT,
-                TitledBorder.TOP,
-                new Font("Segoe UI", Font.BOLD, 14),
-                primaryColor
-            ),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
+    private void showAddAssetDialog() {
+        JDialog dialog = new JDialog(this, "Add Asset", true);
+        dialog.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(0, 8, 0, 8);
-        gbc.gridy = 0;
-        gbc.anchor = GridBagConstraints.WEST;
-
-        JTextField symbolField = createStyledTextField();
-        JTextField nameField = createStyledTextField();
-        JTextField priceField = createStyledTextField();
-        JTextField quantityField = createStyledTextField();
-
-        // Symbol
-        gbc.gridx = 0;
-        panel.add(createStyledLabel("Symbol:"), gbc);
-        gbc.gridx = 1;
-        panel.add(symbolField, gbc);
-
-        // Name
-        gbc.gridx = 2;
-        panel.add(createStyledLabel("Name:"), gbc);
-        gbc.gridx = 3;
-        panel.add(nameField, gbc);
-
-        // Price
-        gbc.gridx = 4;
-        panel.add(createStyledLabel("Price:"), gbc);
-        gbc.gridx = 5;
-        panel.add(priceField, gbc);
-
-        // Quantity
-        gbc.gridx = 6;
-        panel.add(createStyledLabel("Quantity:"), gbc);
-        gbc.gridx = 7;
-        panel.add(quantityField, gbc);
-
-        // Add Button
-        gbc.gridx = 8;
+        gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        JButton addButton = createStyledButton("Add Stock", "add.svg");
+
+        // Symbol field
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        dialog.add(new JLabel("Symbol:"), gbc);
+        gbc.gridx = 1;
+        JTextField symbolField = new JTextField(10);
+        dialog.add(symbolField, gbc);
+
+        // Name field
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        dialog.add(new JLabel("Name:"), gbc);
+        gbc.gridx = 1;
+        JTextField nameField = new JTextField(20);
+        dialog.add(nameField, gbc);
+
+        // Type field
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        dialog.add(new JLabel("Type:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<AssetType> typeComboBox = new JComboBox<>(AssetType.values());
+        dialog.add(typeComboBox, gbc);
+
+        // Quantity field
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        dialog.add(new JLabel("Quantity:"), gbc);
+        gbc.gridx = 1;
+        JSpinner quantitySpinner = new JSpinner(new SpinnerNumberModel(1, 1, Integer.MAX_VALUE, 1));
+        dialog.add(quantitySpinner, gbc);
+
+        // Price field
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        dialog.add(new JLabel("Price:"), gbc);
+        gbc.gridx = 1;
+        JSpinner priceSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 0.01));
+        dialog.add(priceSpinner, gbc);
+
+        // Target allocation field
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        dialog.add(new JLabel("Target %:"), gbc);
+        gbc.gridx = 1;
+        JSpinner targetSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1.0, 0.01));
+        dialog.add(targetSpinner, gbc);
+
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton addButton = new JButton("Add");
+        JButton cancelButton = new JButton("Cancel");
+        buttonPanel.add(addButton);
+        buttonPanel.add(cancelButton);
+
+        gbc.gridx = 0;
+        gbc.gridy = 6;
+        gbc.gridwidth = 2;
+        dialog.add(buttonPanel, gbc);
+
         addButton.addActionListener(e -> {
-            try {
-                String symbol = symbolField.getText().toUpperCase();
-                String name = nameField.getText();
-                double price = Double.parseDouble(priceField.getText());
-                int quantity = Integer.parseInt(quantityField.getText());
-
-                if (symbol.isEmpty() || name.isEmpty()) {
-                    JOptionPane.showMessageDialog(this,
-                        "Please fill in all fields.",
-                        "Input Error",
-                        JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                Stock stock = new Stock(symbol, name, price, quantity, 0);
-                portfolio.addStock(stock);
-                updatePortfolioTable();
-
-                // Clear input fields
-                symbolField.setText("");
-                nameField.setText("");
-                priceField.setText("");
-                quantityField.setText("");
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(this,
-                    "Please enter valid numbers for price and quantity.",
-                    "Input Error",
-                    JOptionPane.ERROR_MESSAGE);
-            }
-        });
-        panel.add(addButton, gbc);
-
-        return panel;
-    }
-
-    private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new GridLayout(4, 1, 10, 10));
-        panel.setBackground(backgroundColor);
-        
-        JButton rebalanceButton = createStyledButton("Rebalance Portfolio", "rebalance.svg");
-        rebalanceButton.addActionListener(e -> {
+            Asset asset = Asset.builder()
+                    .symbol(symbolField.getText().toUpperCase())
+                    .name(nameField.getText())
+                    .type((AssetType) typeComboBox.getSelectedItem())
+                    .quantity((Integer) quantitySpinner.getValue())
+                    .currentPrice((Double) priceSpinner.getValue())
+                    .targetAllocation((Double) targetSpinner.getValue())
+                    .build();
+            portfolio.addAsset(asset);
             updatePortfolioTable();
-            Map<String, Integer> actions = rebalancer.rebalance(portfolio);
-            
-            StringBuilder output = new StringBuilder("Rebalancing Plan:\n\n");
-            actions.forEach((symbol, quantity) -> {
-                if (quantity > 0) {
-                    output.append(String.format("Buy %d shares of %s\n", quantity, symbol));
-                } else if (quantity < 0) {
-                    output.append(String.format("Sell %d shares of %s\n", Math.abs(quantity), symbol));
-                }
-            });
-            
-            rebalancingOutput.setText(output.toString());
+            dialog.dispose();
         });
-        
-        JButton clearButton = createStyledButton("Clear Portfolio", "clear.svg");
-        clearButton.addActionListener(e -> {
-            int confirm = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to clear the portfolio?",
-                "Confirm Clear",
-                JOptionPane.YES_NO_OPTION);
-                
-            if (confirm == JOptionPane.YES_OPTION) {
-                portfolio.getStocks().clear();
-                updatePortfolioTable();
-                rebalancingOutput.setText("");
-            }
-        });
-        
-        panel.add(rebalanceButton);
-        panel.add(clearButton);
-        
-        return panel;
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
-    private JTextField createStyledTextField() {
-        JTextField field = new JTextField();
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        field.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(secondaryColor, 1),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)
-        ));
-        return field;
-    }
-
-    private JLabel createStyledLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        label.setForeground(textColor);
-        return label;
-    }
-
-    private JButton createStyledButton(String text, String iconName) {
-        JButton button = new JButton(text);
-        button.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        button.setForeground(Color.WHITE);
-        button.setBackground(primaryColor);
-        button.setFocusPainted(false);
-        button.setBorderPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        // Add hover effect
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setBackground(secondaryColor);
-            }
-
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                button.setBackground(primaryColor);
-            }
-        });
-        
-        return button;
+    private void removeSelectedAsset() {
+        int selectedRow = portfolioTable.getSelectedRow();
+        if (selectedRow >= 0) {
+            String symbol = (String) tableModel.getValueAt(selectedRow, 0);
+            portfolio.removeAsset(symbol);
+            updatePortfolioTable();
+        }
     }
 
     private void updatePortfolioTable() {
         tableModel.setRowCount(0);
-        portfolio.updateTotalValue();
-        
-        for (Stock stock : portfolio.getStocks()) {
-            Object[] row = {
-                stock.getSymbol(),
-                stock.getName(),
-                String.format("$%.2f", stock.getCurrentPrice()),
-                stock.getQuantity(),
-                String.format("$%.2f", stock.getCurrentValue()),
-                String.format("%.2f%%", stock.getCurrentAllocation(portfolio.getTotalValue()))
-            };
-            tableModel.addRow(row);
+        double totalValue = portfolio.getTotalValue();
+
+        for (Asset asset : portfolio.getAssets()) {
+            double currentValue = asset.getCurrentValue();
+            double currentAllocation = asset.getCurrentAllocation(totalValue);
+            double deviation = asset.getDeviationFromTarget(totalValue);
+
+            tableModel.addRow(new Object[]{
+                    asset.getSymbol(),
+                    asset.getName(),
+                    asset.getType(),
+                    asset.getQuantity(),
+                    String.format("$%.2f", asset.getCurrentPrice()),
+                    String.format("$%.2f", currentValue),
+                    String.format("%.1f%%", asset.getTargetAllocation() * 100),
+                    String.format("%.1f%%", currentAllocation * 100),
+                    String.format("%.1f%%", deviation * 100)
+            });
         }
+
+        totalValueLabel.setText(String.format("Total Value: $%.2f", totalValue));
+    }
+
+    private void updateRebalancer() {
+        String selectedStrategy = (String) strategyComboBox.getSelectedItem();
+        double threshold = (Double) thresholdSpinner.getValue();
+
+        if ("Threshold-Based".equals(selectedStrategy)) {
+            rebalancer = new PortfolioRebalancer(new ThresholdRebalancingStrategy(), threshold);
+        } else {
+            rebalancer = new PortfolioRebalancer(new EqualWeightStrategy(), threshold);
+        }
+    }
+
+    private void rebalancePortfolio() {
+        Map<String, Double> trades = rebalancer.rebalance(portfolio);
         
-        totalValueLabel.setText(String.format("Total Portfolio Value: $%.2f", portfolio.getTotalValue()));
+        if (trades.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Portfolio is already balanced within the threshold.",
+                    "No Rebalancing Needed",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        StringBuilder message = new StringBuilder("Rebalancing trades needed:\n\n");
+        for (Map.Entry<String, Double> trade : trades.entrySet()) {
+            message.append(String.format("%s: %s$%.2f\n",
+                    trade.getKey(),
+                    trade.getValue() > 0 ? "+" : "",
+                    trade.getValue()));
+        }
+
+        JOptionPane.showMessageDialog(this,
+                message.toString(),
+                "Rebalancing Trades",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 
     public static void main(String[] args) {
-        try {
-            UIManager.setLookAndFeel(new FlatLightLaf());
-        } catch (Exception ex) {
-            System.err.println("Failed to initialize LaF");
-        }
-        
         SwingUtilities.invokeLater(() -> {
             new PortfolioGUI().setVisible(true);
         });

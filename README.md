@@ -5,20 +5,20 @@ A modern Java application that helps investors maintain their desired asset allo
 ## Features
 
 ### Core Functionality
-- Portfolio management with multiple stocks
+- Portfolio management with multiple asset types (stocks, bonds, ETFs, etc.)
 - Real-time portfolio value calculation
 - Automatic allocation percentage calculation
-- Multiple rebalancing strategies (currently implements Equal Weight Strategy)
+- Multiple rebalancing strategies (Threshold-Based and Equal Weight)
 - Modern, user-friendly GUI interface
+- Comprehensive unit tests for core logic
 
 ### User Interface
 - Clean, modern design using FlatLaf
-- Input panel for adding new stocks
+- Input panel for adding new assets
 - Interactive portfolio table
 - Real-time portfolio value display
-- Rebalancing recommendations panel
-- Styled buttons with hover effects
-- Professional icons and visual elements
+- Rebalancing recommendations dialog
+- Styled buttons and professional icons
 
 ### Technical Features
 - Built with Java 11
@@ -27,6 +27,7 @@ A modern Java application that helps investors maintain their desired asset allo
 - Uses Java Swing for GUI
 - Includes SVG icons for better visual appeal
 - Responsive and user-friendly interface
+- Unit tests with JUnit
 
 ## Project Structure
 
@@ -40,20 +41,28 @@ portfolio-rebalancer/
 │   │   │           ├── gui/
 │   │   │           │   └── PortfolioGUI.java
 │   │   │           ├── model/
-│   │   │           │   ├── Portfolio.java
-│   │   │           │   └── Stock.java
+│   │   │           │   ├── Asset.java
+│   │   │           │   ├── AssetType.java
+│   │   │           │   └── Portfolio.java
 │   │   │           ├── service/
 │   │   │           │   └── PortfolioRebalancer.java
 │   │   │           ├── strategy/
 │   │   │           │   ├── RebalancingStrategy.java
+│   │   │           │   ├── ThresholdRebalancingStrategy.java
 │   │   │           │   └── EqualWeightStrategy.java
 │   │   │           └── Main.java
 │   │   └── resources/
 │   │       └── icons/
-│   │           ├── add.svg
 │   │           ├── rebalance.svg
-│   │           └── clear.svg
 │   └── test/
+│       └── java/
+│           └── com/
+│               └── portfolio/
+│                   ├── model/
+│                   │   ├── AssetTest.java
+│                   │   └── PortfolioTest.java
+│                   └── strategy/
+│                       └── ThresholdRebalancingStrategyTest.java
 └── pom.xml
 ```
 
@@ -62,7 +71,7 @@ portfolio-rebalancer/
 - **Jackson**: For JSON processing
 - **Lombok**: For reducing boilerplate code
 - **FlatLaf**: For modern UI look and feel
-- **JUnit**: For testing (not implemented yet)
+- **JUnit**: For testing
 
 ## Setup Instructions
 
@@ -84,43 +93,55 @@ portfolio-rebalancer/
 
 ## Usage Guide
 
-### Adding Stocks
-1. Enter stock details in the input fields:
+### Adding Assets
+1. Click "Add Asset" and enter asset details:
    - Symbol (e.g., AAPL)
    - Name (e.g., Apple Inc.)
+   - Type (Stock, Bond, ETF, etc.)
+   - Quantity (e.g., 10)
    - Price (e.g., 150.00)
-   - Quantity (e.g., 100)
-2. Click "Add Stock" button
-3. The stock will appear in the portfolio table
+   - Target Allocation (e.g., 0.2 for 20%)
+2. Click "Add" to add the asset to your portfolio
 
 ### Viewing Portfolio
 - The portfolio table shows:
-  - Stock symbol
-  - Company name
-  - Current price
-  - Number of shares
-  - Total value
-  - Current allocation percentage
+  - Symbol
+  - Name
+  - Type
+  - Quantity
+  - Price
+  - Value
+  - Target %
+  - Current %
+  - Deviation from target
 - Total portfolio value is displayed at the top
 
 ### Rebalancing Portfolio
-1. Click "Rebalance Portfolio" button
-2. View rebalancing recommendations in the bottom panel
-3. Recommendations show:
-   - Number of shares to buy
-   - Number of shares to sell
-   - Target allocations
+1. Select a rebalancing strategy (Threshold-Based or Equal Weight)
+2. Adjust the threshold if needed
+3. Click "Rebalance"
+4. View rebalancing recommendations in the dialog
+   - Shows buy/sell amounts for each asset
 
-### Clearing Portfolio
-- Click "Clear Portfolio" to remove all stocks
-- Confirmation dialog will appear
+### Removing Assets
+- Select an asset in the table and click "Remove Selected"
 
 ## Rebalancing Strategies
 
+### Threshold-Based Rebalancing
+- Suggests trades for assets whose allocation deviates from the target by more than the specified threshold
+
 ### Equal Weight Strategy
-- Distributes portfolio value equally among all stocks
-- Calculates target number of shares for each stock
+- Distributes portfolio value equally among all assets
 - Suggests buy/sell actions to achieve equal allocation
+
+## Testing
+
+- Run all unit tests with:
+  ```bash
+  mvn test
+  ```
+- Tests cover asset calculations, portfolio logic, and rebalancing strategies
 
 ## Future Enhancements
 
@@ -130,7 +151,7 @@ portfolio-rebalancer/
    - Custom Allocation
 
 2. Data Features:
-   - Real-time stock price updates
+   - Real-time price updates
    - Historical performance tracking
    - Transaction history
 
