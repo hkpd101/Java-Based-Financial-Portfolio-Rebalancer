@@ -11,6 +11,7 @@ import com.portfolio.strategy.ThresholdRebalancingStrategy;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import javax.swing.event.ChangeListener;
 import java.util.Map;
 
 public class PortfolioGUI extends JFrame {
@@ -100,76 +101,163 @@ public class PortfolioGUI extends JFrame {
 
     private void showAddAssetDialog() {
         JDialog dialog = new JDialog(this, "Add Asset", true);
-        dialog.setLayout(new GridBagLayout());
+        dialog.setLayout(new BorderLayout(10, 10));
+
+        // Header panel with description
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        JLabel headerLabel = new JLabel("<html><h2>Add New Asset</h2><p style='font-size:10px;'>Fill in the details below to add a new asset to your portfolio.</p></html>");
+        headerLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 0, 10));
+        headerPanel.add(headerLabel, BorderLayout.CENTER);
+        dialog.add(headerPanel, BorderLayout.NORTH);
+
+        // Main input panel with titled border
+        JPanel inputPanel = new JPanel(new GridBagLayout());
+        inputPanel.setBorder(BorderFactory.createTitledBorder("Asset Details"));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
 
-        // Symbol field
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        dialog.add(new JLabel("Symbol:"), gbc);
+        int row = 0;
+
+        // Symbol
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel symbolLabel = new JLabel("Symbol:");
+        symbolLabel.setToolTipText("Enter the stock/asset symbol (e.g., AAPL)");
+        inputPanel.add(symbolLabel, gbc);
         gbc.gridx = 1;
-        JTextField symbolField = new JTextField(10);
-        dialog.add(symbolField, gbc);
+        JTextField symbolField = new JTextField();
+        symbolField.setToolTipText("e.g., AAPL");
+        symbolField.setColumns(12);
+        inputPanel.add(symbolField, gbc);
+        gbc.gridx = 2;
+        inputPanel.add(new JLabel("<html><i>Ticker symbol (e.g., AAPL)</i></html>"), gbc);
+        row++;
 
-        // Name field
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        dialog.add(new JLabel("Name:"), gbc);
+        // Name
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel nameLabel = new JLabel("Name:");
+        nameLabel.setToolTipText("Enter the full name of the asset");
+        inputPanel.add(nameLabel, gbc);
         gbc.gridx = 1;
-        JTextField nameField = new JTextField(20);
-        dialog.add(nameField, gbc);
+        JTextField nameField = new JTextField();
+        nameField.setToolTipText("e.g., Apple Inc.");
+        nameField.setColumns(18);
+        inputPanel.add(nameField, gbc);
+        gbc.gridx = 2;
+        inputPanel.add(new JLabel("<html><i>Full asset name</i></html>"), gbc);
+        row++;
 
-        // Type field
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        dialog.add(new JLabel("Type:"), gbc);
+        // Type
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel typeLabel = new JLabel("Type:");
+        typeLabel.setToolTipText("Select the type of asset");
+        inputPanel.add(typeLabel, gbc);
         gbc.gridx = 1;
-        JComboBox<AssetType> typeComboBox = new JComboBox<>(AssetType.values());
-        dialog.add(typeComboBox, gbc);
+        String[] assetTypes = {"STOCK", "BOND", "ETF", "MUTUAL_FUND", "CRYPTO", "OTHER"};
+        JComboBox<String> typeComboBox = new JComboBox<>(assetTypes);
+        typeComboBox.setToolTipText("Asset type");
+        inputPanel.add(typeComboBox, gbc);
+        gbc.gridx = 2;
+        inputPanel.add(new JLabel("<html><i>Stock, Bond, ETF, etc.</i></html>"), gbc);
+        row++;
 
-        // Quantity field
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        dialog.add(new JLabel("Quantity:"), gbc);
+        // Quantity
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel quantityLabel = new JLabel("Quantity:");
+        quantityLabel.setToolTipText("Enter the number of shares/units");
+        inputPanel.add(quantityLabel, gbc);
         gbc.gridx = 1;
         JSpinner quantitySpinner = new JSpinner(new SpinnerNumberModel(1, 1, Integer.MAX_VALUE, 1));
-        dialog.add(quantitySpinner, gbc);
+        ((JSpinner.DefaultEditor) quantitySpinner.getEditor()).getTextField().setColumns(8);
+        inputPanel.add(quantitySpinner, gbc);
+        gbc.gridx = 2;
+        inputPanel.add(new JLabel("<html><i>Number of units owned</i></html>"), gbc);
+        row++;
 
-        // Price field
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        dialog.add(new JLabel("Price:"), gbc);
+        // Price
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel priceLabel = new JLabel("Price ($):");
+        priceLabel.setToolTipText("Current price per share/unit");
+        inputPanel.add(priceLabel, gbc);
         gbc.gridx = 1;
         JSpinner priceSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 0.01));
-        dialog.add(priceSpinner, gbc);
+        ((JSpinner.DefaultEditor) priceSpinner.getEditor()).getTextField().setColumns(8);
+        inputPanel.add(priceSpinner, gbc);
+        gbc.gridx = 2;
+        inputPanel.add(new JLabel("<html><i>Current market price</i></html>"), gbc);
+        row++;
 
-        // Target allocation field
-        gbc.gridx = 0;
-        gbc.gridy = 5;
-        dialog.add(new JLabel("Target %:"), gbc);
+        // Value (calculated)
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel valueLabel = new JLabel("Value ($):");
+        valueLabel.setToolTipText("Total value (Quantity × Price)");
+        inputPanel.add(valueLabel, gbc);
+        gbc.gridx = 1;
+        JLabel valueDisplay = new JLabel("$0.00");
+        valueDisplay.setForeground(new Color(0, 102, 204));
+        inputPanel.add(valueDisplay, gbc);
+        gbc.gridx = 2;
+        inputPanel.add(new JLabel("<html><i>Auto-calculated</i></html>"), gbc);
+        row++;
+
+        // Target %
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel targetLabel = new JLabel("Target %:");
+        targetLabel.setToolTipText("Desired portfolio allocation (e.g., 0.2 for 20%)");
+        inputPanel.add(targetLabel, gbc);
         gbc.gridx = 1;
         JSpinner targetSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1.0, 0.01));
-        dialog.add(targetSpinner, gbc);
+        ((JSpinner.DefaultEditor) targetSpinner.getEditor()).getTextField().setColumns(8);
+        inputPanel.add(targetSpinner, gbc);
+        gbc.gridx = 2;
+        inputPanel.add(new JLabel("<html><i>e.g., 0.2 = 20%</i></html>"), gbc);
+        row++;
 
-        // Buttons
+        // Value update listener
+        ChangeListener valueUpdateListener = e -> {
+            double quantity = ((Number) quantitySpinner.getValue()).doubleValue();
+            double price = ((Number) priceSpinner.getValue()).doubleValue();
+            double value = quantity * price;
+            valueDisplay.setText(String.format("$%.2f", value));
+        };
+        quantitySpinner.addChangeListener(valueUpdateListener);
+        priceSpinner.addChangeListener(valueUpdateListener);
+
+        dialog.add(inputPanel, BorderLayout.CENTER);
+
+        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton addButton = new JButton("Add");
         JButton cancelButton = new JButton("Cancel");
         buttonPanel.add(addButton);
         buttonPanel.add(cancelButton);
-
-        gbc.gridx = 0;
-        gbc.gridy = 6;
-        gbc.gridwidth = 2;
-        dialog.add(buttonPanel, gbc);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
 
         addButton.addActionListener(e -> {
+            // Input validation
+            if (symbolField.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "Please enter a symbol", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (nameField.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "Please enter a name", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if ((Double) targetSpinner.getValue() <= 0) {
+                JOptionPane.showMessageDialog(dialog, "Target allocation must be greater than 0", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if ((Double) targetSpinner.getValue() > 1) {
+                JOptionPane.showMessageDialog(dialog, "Target allocation cannot exceed 100%", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             Asset asset = Asset.builder()
-                    .symbol(symbolField.getText().toUpperCase())
-                    .name(nameField.getText())
-                    .type((AssetType) typeComboBox.getSelectedItem())
+                    .symbol(symbolField.getText().toUpperCase().trim())
+                    .name(nameField.getText().trim())
+                    .type(AssetType.valueOf((String) typeComboBox.getSelectedItem()))
                     .quantity((Integer) quantitySpinner.getValue())
                     .currentPrice((Double) priceSpinner.getValue())
                     .targetAllocation((Double) targetSpinner.getValue())
